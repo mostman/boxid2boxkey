@@ -1,0 +1,336 @@
+/***************************************************************
+ * Name:      boxid2boxkeyMain.cpp
+ * Purpose:   Code for Application Frame
+ * Author:    Minime (i_am_minime_2003@hotmail.com)
+ * Created:   2011-06-16
+ * Copyright: 2011-2021 Martin Östman (i_am_minime_2003@hotmail.com)
+ * License:
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without modification, are
+ * permitted provided that the following conditions are met:
+ *
+ * 1.Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * 2.Redistributions in binary form must reproduce the above copyright notice, this list of
+ *   conditions and the following disclaimer in the documentation and/or other materials provided
+ *   with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE FREEBSD PROJECT OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ***************************************************************
+ * Changelog
+ *
+ * v1.4 - 2011-10-01
+ * - Updated and adapted code for wxWidgets version 3.0.5
+ * - Rewritten the boxid2boxkey applicatioon.
+ * - Added CCcam.cfg template and one can now choose what
+ *   template to create.
+ * - One can now also write either the Eleven long boxid for 093E
+ *   cards or the Seventeen long boxid for 093B cards.
+ * - As this boxid to boxkey software is more or less usless nowadays
+ *   The sourcecode is avalible for download from my github.
+ *
+ * v1.3 - 2011-10-01
+ * - Fixed CRLF issue in when generating oscam.server template file.
+ * - Changed program icon
+ * - Changed information in the About dialog
+ * (Windows)
+ * - Fixed Uncertified nagging window.
+ * (Linux)
+ * - Compiled program icon in the binary.
+ *
+ * v1.2 - 2011-06-16
+ * - Updated wxWidgets version 2.8.12
+ * - Stores the generated boxkey to a oscam.server template file
+ *   in the same directory that the exe file is placed.
+ * - Changed information in the About dialoge
+ *
+ * v1.1 - 2010-07-23
+ * - Recompiled all to onefile.
+ *   in version 1.0 the wxmsx28u_gcc_custom.dll file was needed.
+ *   When recompiled the dll file is compiled into the exe file.
+ * - Added an program icon to the  software.
+ *
+ * v1.0 - 2010-07-23
+ * - First release version of BoxID2KeyCalulator for Windows
+ *   With wxWidgets GUI.
+ *   wxWidgets version 2.8.11
+ **************************************************************/
+
+#include "boxid2boxkeyMain.h"
+#include <wx/msgdlg.h>
+
+//(*InternalHeaders(boxid2boxkeyFrame)
+#include <wx/intl.h>
+#include <wx/string.h>
+//*)
+
+// Include for file functions
+//#include <wx/wfstream.h>
+//#include <wx/txtstrm.h>
+#include <wx/file.h>
+//#include <wx/textfile.h>
+
+// Include for RegEx Matching
+#include <wx/regex.h>
+
+//helper functions
+enum wxbuildinfoformat {
+    short_f, long_f };
+
+wxString wxbuildinfo(wxbuildinfoformat format)
+{
+    wxString wxbuild(wxVERSION_STRING);
+
+    if (format == long_f )
+    {
+#if defined(__WXMSW__)
+        wxbuild << _T("-Windows");
+#elif defined(__UNIX__)
+        wxbuild << _T("-Linux");
+#endif
+
+#if wxUSE_UNICODE
+        wxbuild << _T("-Unicode build");
+#else
+        wxbuild << _T("-ANSI build");
+#endif // wxUSE_UNICODE
+    }
+
+    return wxbuild;
+}
+
+//(*IdInit(boxid2boxkeyFrame)
+const long boxid2boxkeyFrame::ID_TEXTBOXID = wxNewId();
+const long boxid2boxkeyFrame::ID_TEXTBOXKEY = wxNewId();
+const long boxid2boxkeyFrame::ID_BTNCONVERT = wxNewId();
+const long boxid2boxkeyFrame::ID_BTNQUIT = wxNewId();
+const long boxid2boxkeyFrame::ID_PANEL1 = wxNewId();
+const long boxid2boxkeyFrame::idMenuQuit = wxNewId();
+const long boxid2boxkeyFrame::idCCCam = wxNewId();
+const long boxid2boxkeyFrame::idOSCam = wxNewId();
+const long boxid2boxkeyFrame::idMenuAbout = wxNewId();
+const long boxid2boxkeyFrame::ID_STATUSBAR1 = wxNewId();
+//*)
+
+BEGIN_EVENT_TABLE(boxid2boxkeyFrame,wxFrame)
+    //(*EventTable(boxid2boxkeyFrame)
+    //*)
+END_EVENT_TABLE()
+
+void boxid2boxkeyFrame::GenTemplate(wxString strBoxKey, wxString strCAID="093E")
+{
+    wxString strSoftCam;
+    // Save template file(s).
+    wxFile IsFile;
+    wxString strFile;
+    wxString strLines;
+
+    if (MenuItemCCCam->IsChecked())
+    {
+        strSoftCam = wxT("CCCam");
+        strFile = wxT("CCcam.cfg");
+
+        strLines = wxT("# Autogenerated "+strFile+" file by BoxID2BoxKey Converter\n\n");
+        strLines += wxT("# ViaSat BoxKey\n");
+        // Has to be formatted 00 11 22 33
+        strLines += wxT("BOXKEY: /dev/sci0 "+strBoxKey.Left(2)+
+                        " "+strBoxKey.Mid(2,strBoxKey.length()-6)+
+                        " "+strBoxKey.Mid(4,strBoxKey.length()-6)+
+                        " "+strBoxKey.Right(2)+"\n");
+        strLines += wxT("SMARTCARD CLOCK FREQUENCY: /dev/sci0 3570000\n");
+
+        //strBoxKey;
+        //wxT("CCCam");
+        //strCAID;
+        if (!IsFile.Exists(strFile))
+        {
+            IsFile.Create(strFile,true);
+        }
+        IsFile.Open(strFile,wxFile::write); //should already be open right?
+        IsFile.Write(strLines);
+        IsFile.Flush();
+        IsFile.Close();
+
+        wxMessageBox(strSoftCam+_(" Template created for CAID ")+strCAID);
+    }
+    if (MenuItemOSCam->IsChecked())
+    {
+        strSoftCam = wxT("OSCam");
+        strFile = wxT("oscam.server");
+
+        strLines = wxT("# Autogenerated "+strFile+" file by BoxID2BoxKey Converter\n\n");
+        strLines += wxT("[reader]\n");
+        strLines += wxT("label          = Viasat\n");
+        strLines += wxT("enable         = 1\n");
+        strLines += wxT("protocol       = internal\n");
+        strLines += wxT("device         = /dev/sci0\n");
+        strLines += wxT("detect         = cd\n");
+        strLines += wxT("caid           = "+strCAID+"\n");
+        strLines += wxT("boxid          = "+strBoxKey+"\n");
+        strLines += wxT("group          = 1\n");
+        strLines += wxT("emmcache       = 1,3,15\n");
+        strLines += wxT("audisabled     = 0\n");
+        strLines += wxT("mhz            = 357\n");
+        strLines += wxT("cardmhz        = 2700\n");
+        strLines += wxT("ratelimitecm   = 4\n");
+        strLines += wxT("ratelimittime  = 9000\n");
+        strLines += wxT("ecmunique      = 1\n");
+        strLines += wxT("srvidholdtime  = 2000\n");
+        strLines += wxT("cooldown       = 30,600\n");
+
+        //strBoxKey;
+        //wxT("OSCam");
+        //strCAID;
+        if (!IsFile.Exists(strFile))
+        {
+            IsFile.Create(strFile,true);
+        }
+        IsFile.Open(strFile,wxFile::write); //should already be open right?
+        IsFile.Write(strLines);
+        IsFile.Flush();
+        IsFile.Close();
+
+        wxMessageBox(strSoftCam+wxT(" Template created for CAID ")+strCAID);
+    }
+}
+
+boxid2boxkeyFrame::boxid2boxkeyFrame(wxWindow* parent,wxWindowID id)
+{
+    //(*Initialize(boxid2boxkeyFrame)
+    wxBoxSizer* BoxSizer1;
+    wxBoxSizer* BoxSizer2;
+    wxBoxSizer* BoxSizer3;
+    wxGridSizer* GridSizer1;
+    wxMenu* Menu1;
+    wxMenu* Menu2;
+    wxMenuBar* MenuBar1;
+    wxMenuItem* MenuItem1;
+    wxMenuItem* MenuItem2;
+    wxStaticBoxSizer* StaticBoxSizer1;
+    wxStaticBoxSizer* StaticBoxSizer2;
+
+    Create(parent, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxDEFAULT_DIALOG_STYLE, _T("wxID_ANY"));
+    GridSizer1 = new wxGridSizer(1, 1, 0, 0);
+    Panel1 = new wxPanel(this, ID_PANEL1, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL, _T("ID_PANEL1"));
+    BoxSizer1 = new wxBoxSizer(wxVERTICAL);
+    BoxSizer2 = new wxBoxSizer(wxHORIZONTAL);
+    StaticBoxSizer1 = new wxStaticBoxSizer(wxHORIZONTAL, Panel1, _("BoxID"));
+    TextBoxID = new wxTextCtrl(Panel1, ID_TEXTBOXID, wxEmptyString, wxDefaultPosition, wxSize(110,25), 0, wxDefaultValidator, _T("ID_TEXTBOXID"));
+    TextBoxID->SetMaxLength(17);
+    StaticBoxSizer1->Add(TextBoxID, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
+    BoxSizer2->Add(StaticBoxSizer1, 0, wxALL|wxEXPAND, 2);
+    StaticBoxSizer2 = new wxStaticBoxSizer(wxHORIZONTAL, Panel1, _("Box Key"));
+    TextBoxKey = new wxTextCtrl(Panel1, ID_TEXTBOXKEY, wxEmptyString, wxDefaultPosition, wxSize(80,25), wxTE_READONLY, wxDefaultValidator, _T("ID_TEXTBOXKEY"));
+    StaticBoxSizer2->Add(TextBoxKey, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 5);
+    BoxSizer2->Add(StaticBoxSizer2, 0, wxALL|wxEXPAND, 2);
+    BoxSizer1->Add(BoxSizer2, 0, wxALL|wxEXPAND, 2);
+    BoxSizer3 = new wxBoxSizer(wxHORIZONTAL);
+    btnConvert = new wxButton(Panel1, ID_BTNCONVERT, _("Convert"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_BTNCONVERT"));
+    BoxSizer3->Add(btnConvert, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+    btnQuit = new wxButton(Panel1, ID_BTNQUIT, _("Quit"), wxDefaultPosition, wxDefaultSize, 0, wxDefaultValidator, _T("ID_BTNQUIT"));
+    BoxSizer3->Add(btnQuit, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 2);
+    BoxSizer1->Add(BoxSizer3, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
+    Panel1->SetSizer(BoxSizer1);
+    BoxSizer1->Fit(Panel1);
+    BoxSizer1->SetSizeHints(Panel1);
+    GridSizer1->Add(Panel1, 0, wxALL|wxALIGN_CENTER_HORIZONTAL|wxALIGN_CENTER_VERTICAL, 0);
+    SetSizer(GridSizer1);
+    MenuBar1 = new wxMenuBar();
+    Menu1 = new wxMenu();
+    MenuItem1 = new wxMenuItem(Menu1, idMenuQuit, _("Quit\tAlt-F4"), _("Quit the application"), wxITEM_NORMAL);
+    Menu1->Append(MenuItem1);
+    MenuBar1->Append(Menu1, _("&File"));
+    Menu3 = new wxMenu();
+    MenuItemCCCam = new wxMenuItem(Menu3, idCCCam, _("CCCam"), _("Generate CCCam Template"), wxITEM_CHECK);
+    Menu3->Append(MenuItemCCCam);
+    MenuItemOSCam = new wxMenuItem(Menu3, idOSCam, _("OSCam"), _("Generate OSCam Template"), wxITEM_CHECK);
+    Menu3->Append(MenuItemOSCam);
+    MenuBar1->Append(Menu3, _("Template"));
+    Menu2 = new wxMenu();
+    MenuItem2 = new wxMenuItem(Menu2, idMenuAbout, _("About\tF1"), _("Show info about this application"), wxITEM_NORMAL);
+    Menu2->Append(MenuItem2);
+    MenuBar1->Append(Menu2, _("Help"));
+    SetMenuBar(MenuBar1);
+    StatusBar1 = new wxStatusBar(this, ID_STATUSBAR1, 0, _T("ID_STATUSBAR1"));
+    int __wxStatusBarWidths_1[1] = { -1 };
+    int __wxStatusBarStyles_1[1] = { wxSB_NORMAL };
+    StatusBar1->SetFieldsCount(1,__wxStatusBarWidths_1);
+    StatusBar1->SetStatusStyles(1,__wxStatusBarStyles_1);
+    SetStatusBar(StatusBar1);
+    GridSizer1->Fit(this);
+    GridSizer1->SetSizeHints(this);
+
+    Connect(ID_BTNCONVERT,wxEVT_COMMAND_BUTTON_CLICKED,(wxObjectEventFunction)&boxid2boxkeyFrame::OnbtnConvertClick);
+    Connect(ID_BTNQUIT,wxEVT_COMMAND_BUTTON_CLICKED,(wxObjectEventFunction)&boxid2boxkeyFrame::OnQuit);
+    Connect(idMenuQuit,wxEVT_COMMAND_MENU_SELECTED,(wxObjectEventFunction)&boxid2boxkeyFrame::OnQuit);
+    Connect(idMenuAbout,wxEVT_COMMAND_MENU_SELECTED,(wxObjectEventFunction)&boxid2boxkeyFrame::OnAbout);
+    //*)
+}
+
+boxid2boxkeyFrame::~boxid2boxkeyFrame()
+{
+    //(*Destroy(boxid2boxkeyFrame)
+    //*)
+}
+
+void boxid2boxkeyFrame::OnQuit(wxCommandEvent& event)
+{
+    Close();
+}
+
+void boxid2boxkeyFrame::OnAbout(wxCommandEvent& event)
+{
+    wxString msgHead =_("About BoxID To Boxkey Converter");
+    wxString msgInfo = wxbuildinfo(long_f);
+    wxString msg = msgInfo+_("\n\nBoxID To Boxkey Converter 1.4\nBy Minime 2014-01-22\n\n@ comhit.net");
+    wxMessageBox(msg, msgHead);
+}
+
+void boxid2boxkeyFrame::OnbtnConvertClick(wxCommandEvent& event)
+{
+    wxRegEx reNDS("(([A-f]|[0-9]){6})([0-9]{10})([A-f]|[0-9]{1})",wxRE_ADVANCED + wxRE_ICASE);
+    wxString strBoxID = TextBoxID->GetValue();
+    wxString strBoxKey;
+    if (
+            (strBoxID != "") &&
+            (wxStringCheck<wxIsdigit>(strBoxID)) &&
+            (strBoxID.length() == 11)
+        )
+    {
+        strBoxKey = boxid2boxkey.stringTohex(strBoxID);
+        TextBoxKey->SetValue(strBoxKey);
+        if ( (MenuItemCCCam->IsChecked()) || (MenuItemOSCam->IsChecked()) )
+        {
+            GenTemplate(strBoxKey);
+        }
+    }
+    else if (
+            (strBoxID != "") &&
+            (strBoxID.length() == 17) &&
+            ( (reNDS.IsValid()) && (reNDS.Matches(strBoxID)) )
+        )
+    {
+        strBoxKey = boxid2boxkey.stringTohex(strBoxID);
+        TextBoxKey->SetValue(strBoxKey);
+        if ( (MenuItemCCCam->IsChecked()) || (MenuItemOSCam->IsChecked()) )
+        {
+            GenTemplate(strBoxKey, wxT("093B"));
+        }
+    }
+    else
+    {
+        wxString strBoxIDmsg;
+        strBoxIDmsg = _("The BoxID is usually 11 digits long\n");
+        strBoxIDmsg += _("or 17 letters and digits long\n");
+        strBoxIDmsg += _("Please try again.");
+        wxMessageBox(strBoxIDmsg, _("Incorrect BoxID format"), wxOK | wxICON_EXCLAMATION);
+    }
+}
