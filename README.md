@@ -1,3 +1,4 @@
+[![GitHub all releases](https://img.shields.io/github/downloads/mostman/boxid2boxkey/total?style=plastic)](https://github.com/mostman/boxid2boxkey/)
 Small Windows/Linux app to help you convert the BoxID of your NDS reciver box Serial number to BoxKey.
 
 New function added, saves a oscam.server and a CCcam template file with the NDS BoxID you entered.
